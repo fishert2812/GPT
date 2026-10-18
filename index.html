@@ -109,6 +109,10 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 #canvas { position: fixed; inset: 0; }
 #status { position: fixed !important; }
 </style>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="theme-color" content="#141a14">
 </head>
 <body>
 
@@ -128,7 +132,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 		<script>
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm", "pck/1.wasm", "pck/2.wasm"], "gzip": false, "size": 39906640, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm?v=cceed239563a"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm?v=cceed239563a", "pck/1.wasm?v=cceed239563a", "pck/2.wasm?v=cceed239563a"], "gzip": false, "size": 39906640, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1176,5 +1180,6 @@ const engine = new Engine(GODOT_CONFIG);
 }());
 		</script>
 	
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('sw', e); }); });</script>
 </body>
 </html>
