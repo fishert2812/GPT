@@ -1,10 +1,11 @@
-// Service worker for the home-screen app (written by tools/web_artifact.py --full).
+// Service worker for the home-screen app. Template: tools/web_artifact.py --full fills in
+// the build id and the precache list below and writes it next to index.html as sw.js.
 // Game parts carry ?v=BUILD in their URL, so they are served from cache forever;
 // everything else (the page itself, sw.js, manifest, icons) is network-first and
 // revalidated past the HTTP cache, so a new deploy shows up on the next launch;
 // the cached copy is used only when the network fails or stalls.
-const BUILD = "472b0b29947f";
-const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0.wasm?v=472b0b29947f", "pck/0.wasm?v=472b0b29947f", "pck/1.wasm?v=472b0b29947f", "pck/2.wasm?v=472b0b29947f", "pck/3.wasm?v=472b0b29947f"];
+const BUILD = "68a813230d10";
+const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0.wasm?v=68a813230d10", "pck/0.wasm?v=68a813230d10", "pck/1.wasm?v=68a813230d10", "pck/2.wasm?v=68a813230d10", "pck/3.wasm?v=68a813230d10"];
 const CACHE = "archertd-" + BUILD;
 const NET_TIMEOUT = 8000;
 

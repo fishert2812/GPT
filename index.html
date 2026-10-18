@@ -109,7 +109,6 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 #canvas { position: fixed; inset: 0; }
 #status { position: fixed !important; }
 </style>
-
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -145,7 +144,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 		<script>
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm?v=472b0b29947f"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm?v=472b0b29947f", "pck/1.wasm?v=472b0b29947f", "pck/2.wasm?v=472b0b29947f", "pck/3.wasm?v=472b0b29947f"], "gzip": false, "size": 55646448, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm?v=68a813230d10"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm?v=68a813230d10", "pck/1.wasm?v=68a813230d10", "pck/2.wasm?v=68a813230d10", "pck/3.wasm?v=68a813230d10"], "gzip": false, "size": 55646576, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1088,7 +1087,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55646448,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55646576,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1195,7 +1194,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "472b0b29947f"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "68a813230d10"; // same value as BUILD in sw.js; bumped together on every deploy
 
   // Build badge (top-left, fades out, see #build-badge in <head>) so it is obvious which build runs.
   var badge = document.createElement('div');
