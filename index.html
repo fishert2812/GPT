@@ -114,6 +114,18 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <meta name="theme-color" content="#141a14">
+<style>
+#build-badge {
+  position: fixed; z-index: 9; pointer-events: none;
+  top: calc(env(safe-area-inset-top, 0px) + 4px);
+  left: calc(env(safe-area-inset-left, 0px) + 6px);
+  padding: 3px 6px; border-radius: 4px;
+  font: 11px/1 -apple-system, system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.45);
+  animation: build-badge-out 6s linear forwards;
+}
+@keyframes build-badge-out { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
+</style>
 </head>
 <body>
 
@@ -1181,6 +1193,44 @@ const engine = new Engine(GODOT_CONFIG);
 }());
 		</script>
 	
-<script>if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('sw', e); }); });</script>
+<script>
+(function () {
+  var BUILD = "472b0b29947f"; // same value as BUILD in sw.js; bumped together on every deploy
+
+  // Build badge (top-left, fades out, see #build-badge in <head>) so it is obvious which build runs.
+  var badge = document.createElement('div');
+  badge.id = 'build-badge';
+  badge.textContent = 'сборка ' + BUILD.slice(0, 6);
+  badge.addEventListener('animationend', function () { badge.remove(); });
+  document.body.appendChild(badge);
+
+  if (!('serviceWorker' in navigator)) return;
+
+  // When a new worker takes over, ask which build it serves and reload once if it is not ours.
+  var reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    var ctl = navigator.serviceWorker.controller;
+    if (!ctl || reloaded) return;
+    var ch = new MessageChannel();
+    ch.port1.onmessage = function (e) {
+      if (reloaded || !e.data || !e.data.build || e.data.build === BUILD) return;
+      reloaded = true;
+      location.reload();
+    };
+    ctl.postMessage({ type: 'build' }, [ch.port2]);
+  });
+
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+      var check = function () { reg.update().catch(function () {}); };
+      check();
+      // iOS keeps a home-screen app alive for days; re-check for a new build every time it comes back.
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') check();
+      });
+    }).catch(function (e) { console.warn('sw', e); });
+  });
+}());
+</script>
 </body>
 </html>
