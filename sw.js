@@ -1,16 +1,39 @@
 // Service worker for the home-screen app. Template: tools/web_artifact.py --full fills in
 // the build id and the precache list below and writes it next to index.html as sw.js.
-// Game parts carry ?v=BUILD in their URL, so they are served from cache forever;
+// Game parts carry ?v=BUILD in their URL, so they are served from cache forever; a part is
+// cached only when its byte count matches SIZES (a stale or cut copy from a CDN never sticks);
 // everything else (the page itself, sw.js, manifest, icons) is network-first and
 // revalidated past the HTTP cache, so a new deploy shows up on the next launch;
 // the cached copy is used only when the network fails or stalls.
-const BUILD = "7e18e0a22aae";
-const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0.wasm?v=7e18e0a22aae", "pck/0.wasm?v=7e18e0a22aae", "pck/1.wasm?v=7e18e0a22aae", "pck/2.wasm?v=7e18e0a22aae", "pck/3.wasm?v=7e18e0a22aae"];
+const BUILD = "93e43d1778a3";
+const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm?v=93e43d1778a3", "pck/0-8cc6526920.wasm?v=93e43d1778a3", "pck/1-91a95cd478.wasm?v=93e43d1778a3", "pck/2-63be2ce713.wasm?v=93e43d1778a3", "pck/3-02d9b4179a.wasm?v=93e43d1778a3"];
+const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-8cc6526920.wasm": 14000000, "1-91a95cd478.wasm": 14000000, "2-63be2ce713.wasm": 14000000, "3-02d9b4179a.wasm": 13693584};
 const CACHE = "archertd-" + BUILD;
 const NET_TIMEOUT = 8000;
 
 const isChunk = (url) => new URL(url, self.location.href).searchParams.has("v");
 const fresh = (url) => new Request(url, { cache: "reload" });
+const want = (url) => SIZES[new URL(url, self.location.href).pathname.split("/").pop()];
+
+// A game part from the network, checked against its byte count; one more try past the HTTP cache
+// if it does not match. Resolves to { res, ok }: only ok parts go into the cache.
+const fetchPart = async (url) => {
+  let last = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const r = await fetch(url, { cache: attempt ? "reload" : "default" });
+    if (!r.ok) { last = r; continue; }
+    const buf = await r.arrayBuffer();
+    const res = new Response(buf, { status: 200, headers: { "Content-Type": "application/wasm" } });
+    if (want(url) === undefined || buf.byteLength === want(url)) return { res, ok: true };
+    last = res;
+  }
+  return { res: last, ok: false };
+};
+const cachePart = (key) => fetchPart(key).then(({ res, ok }) => {
+  if (ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
+  return res;
+});
+
 const store = (key) => (res) => {
   if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
   return res;
@@ -20,7 +43,8 @@ self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(async (c) => {
     // The shell must precache; the big game chunks are best-effort (they are also cached on first use).
     await c.addAll(PRECACHE.filter((u) => !isChunk(u)).map(fresh));
-    await Promise.allSettled(PRECACHE.filter(isChunk).map((u) => c.add(fresh(u))));
+    await Promise.allSettled(PRECACHE.filter(isChunk).map((u) => fetchPart(u)
+      .then(({ res, ok }) => ok && c.put(u, res))));
   }).then(() => self.skipWaiting()));
 });
 
@@ -39,9 +63,14 @@ self.addEventListener("message", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
+  if (new URL(req.url).searchParams.has("fresh")) {
+    // The page re-fetching a part that came back the wrong size: straight to the network, not cached.
+    e.respondWith(fetch(req.url, { cache: "reload" }));
+    return;
+  }
   if (isChunk(req.url)) {
     // Versioned game chunk: cache-first, forever.
-    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then(store(req))));
+    e.respondWith(caches.match(req).then((hit) => hit || cachePart(req.url)));
     return;
   }
   // Shell file or navigation: network-first ("no-cache" revalidates past the HTTP cache's max-age),

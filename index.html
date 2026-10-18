@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 7e18e0a22aae replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with 93e43d1778a3 replaced.
 //
 // - Badge (top-left): "сборка XXXXXX · 60 к/с" for 6 s after start. Tapping that corner later opens
 //   the journal panel: live FPS / worst frame, memory, the last log lines, "Скопировать".
@@ -150,7 +150,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 //   previous session still alive (Safari killed or reloaded the page while playing), it shows
 //   "Прошлый запуск оборвался" with the previous journal and a copy button.
 (function () {
-  var BUILD = "7e18e0a22aae";
+  var BUILD = "93e43d1778a3";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   var t0 = performance.now();
@@ -375,44 +375,79 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 </script>
 <script>
 (function () {
-  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-  const Real = window.AudioContext || window.webkitAudioContext;
-  if (!Real) return;
-  const all = [];
-  function Tracked(opts) { const c = new Real(opts); all.push(c); return c; }
-  Tracked.prototype = Real.prototype;
-  window.AudioContext = Tracked;
-  if (window.webkitAudioContext) window.webkitAudioContext = Tracked;
-  const wake = function () {
-    all.forEach(function (c) { if (c.state !== 'running') c.resume().catch(function () {}); });
-  };
-  ['touchend', 'pointerup', 'keydown', 'click'].forEach(function (ev) {
-    window.addEventListener(ev, wake, { capture: true, passive: true });
-  });
+  // Sound on iPhone: play even with the silent switch on (audioSession "playback") and start the
+  // engine's AudioContext on the first tap. Everything here is optional: any failure leaves the
+  // browser's own AudioContext untouched, so the game always starts.
+  try {
+    var s = navigator.audioSession;
+    if (s && 'type' in s) s.type = 'playback';
+  } catch (e) {}
+  try {
+    var Real = window.AudioContext || window.webkitAudioContext;
+    if (typeof Real !== 'function') return;
+    var all = [];
+    var Tracked = class extends Real {
+      constructor(opts) {
+        super(opts);
+        try { all.push(this); } catch (e) {}
+      }
+    };
+    var make = function (opts) {
+      try { return new Tracked(opts); } catch (e) { return new Real(opts); }
+    };
+    var Safe = function (opts) { return make(opts); };
+    Safe.prototype = Real.prototype;
+    var wake = function () {
+      all.forEach(function (c) {
+        try {
+          if (c.state !== 'running') {
+            var p = c.resume();
+            if (p && p.catch) p.catch(function () {});
+          }
+          // a silent one-sample sound inside the tap unlocks output on older iOS
+          var src = c.createBufferSource();
+          src.buffer = c.createBuffer(1, 1, c.sampleRate);
+          src.connect(c.destination);
+          src.start(0);
+        } catch (e) {}
+      });
+    };
+    ['touchend', 'pointerup', 'keydown', 'click'].forEach(function (ev) {
+      window.addEventListener(ev, wake, { capture: true, passive: true });
+    });
+    if (window.AudioContext) window.AudioContext = Safe;
+    if (window.webkitAudioContext) window.webkitAudioContext = Safe;
+  } catch (e) {}
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm?v=7e18e0a22aae"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm?v=7e18e0a22aae", "pck/1.wasm?v=7e18e0a22aae", "pck/2.wasm?v=7e18e0a22aae", "pck/3.wasm?v=7e18e0a22aae"], "gzip": false, "size": 55693200, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=93e43d1778a3"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-8cc6526920.wasm?v=93e43d1778a3", "pck/1-91a95cd478.wasm?v=93e43d1778a3", "pck/2-63be2ce713.wasm?v=93e43d1778a3", "pck/3-02d9b4179a.wasm?v=93e43d1778a3"], "sizes": [14000000, 14000000, 14000000, 13693584], "gzip": false, "size": 55693584, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
     const name = url.split('?')[0].split('/').pop();
     const c = CHUNKS[name];
     if (!c) return realFetch(input, init);
-    let i = 0, reader = null;
+    // Each part is checked against its byte count: a truncated or stale copy (from a CDN or a
+    // cache) is fetched once more past every cache instead of being handed to Godot.
+    const part = async function (k) {
+      const url = c.parts[k], want = c.sizes[k];
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const fresh = attempt > 0;
+        const u = fresh ? url + (url.indexOf('?') < 0 ? '?' : '&') + 'fresh=' + Date.now() : url;
+        const r = await realFetch(u, fresh ? { cache: 'reload' } : undefined);
+        if (!r.ok) continue;
+        const buf = new Uint8Array(await r.arrayBuffer());
+        if (buf.byteLength === want) return buf;
+        console.warn('кусок игры ' + url + ': ' + buf.byteLength + ' байт вместо ' + want + ', качаю заново');
+      }
+      throw new Error('Не загрузился кусок игры: ' + url);
+    };
+    let i = 0;
     let stream = new ReadableStream({
       async pull(ctl) {
-        for (;;) {
-          if (!reader) {
-            if (i >= c.parts.length) { ctl.close(); return; }
-            const r = await realFetch(c.parts[i++]);
-            if (!r.ok) throw new Error('Не загрузился кусок игры: ' + r.status);
-            reader = r.body.getReader();
-          }
-          const { done, value } = await reader.read();
-          if (done) { reader = null; continue; }
-          ctl.enqueue(value); return;
-        }
+        if (i >= c.parts.length) { ctl.close(); return; }
+        ctl.enqueue(await part(i++));
       }
     });
     if (c.gzip) stream = stream.pipeThrough(new DecompressionStream('gzip'));
@@ -1335,7 +1370,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55693200,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55693584,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1442,7 +1477,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "7e18e0a22aae"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "93e43d1778a3"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
