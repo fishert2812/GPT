@@ -144,7 +144,24 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 		<script>
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm?v=68a813230d10"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm?v=68a813230d10", "pck/1.wasm?v=68a813230d10", "pck/2.wasm?v=68a813230d10", "pck/3.wasm?v=68a813230d10"], "gzip": false, "size": 55646576, "type": "application/octet-stream"}};
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  const Real = window.AudioContext || window.webkitAudioContext;
+  if (!Real) return;
+  const all = [];
+  function Tracked(opts) { const c = new Real(opts); all.push(c); return c; }
+  Tracked.prototype = Real.prototype;
+  window.AudioContext = Tracked;
+  if (window.webkitAudioContext) window.webkitAudioContext = Tracked;
+  const wake = function () {
+    all.forEach(function (c) { if (c.state !== 'running') c.resume().catch(function () {}); });
+  };
+  ['touchend', 'pointerup', 'keydown', 'click'].forEach(function (ev) {
+    window.addEventListener(ev, wake, { capture: true, passive: true });
+  });
+}());
+
+(function () {
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm?v=17bdddd220ec"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm?v=17bdddd220ec", "pck/1.wasm?v=17bdddd220ec", "pck/2.wasm?v=17bdddd220ec", "pck/3.wasm?v=17bdddd220ec"], "gzip": false, "size": 55656912, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1087,7 +1104,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55646576,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55656912,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1194,7 +1211,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "68a813230d10"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "17bdddd220ec"; // same value as BUILD in sw.js; bumped together on every deploy
 
   // Build badge (top-left, fades out, see #build-badge in <head>) so it is obvious which build runs.
   var badge = document.createElement('div');
