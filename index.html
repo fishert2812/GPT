@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 17c2c793cc64 replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with e6d0f2a5c684 replaced.
 //
 // - Badge (top-left): "сборка XXXXXX · 60 к/с" for 6 s after start. Tapping that corner later opens
 //   the journal panel: live FPS / worst frame, memory, the last log lines, "Скопировать".
@@ -149,10 +149,17 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 // - Crash detection: the page marks the session "alive" while visible. If the next start finds the
 //   previous session still alive (Safari killed or reloaded the page while playing), it shows
 //   "Прошлый запуск оборвался" with the previous journal and a copy button.
+// - Sending (Roman allowed it on 2026-10-18): the journal also goes to ntfy.sh under a secret topic, so we
+//   read it without anyone copying: https://ntfy.sh/<TOPIC>/json?poll=1&since=12h. Technical data only
+//   (build, device kind, screen, fps, memory, game state, error lines), no user agent or personal data.
+//   Sent on every error (at most one message per 5 s carries all new lines), at start for a previous
+//   launch that broke off or had errors (its last 40 lines), every 2 min as a pulse while the page is
+//   visible, and when the page is hidden. ntfy takes 4 KB per message, so longer texts go in parts.
 (function () {
-  var BUILD = "17c2c793cc64";
+  var BUILD = "e6d0f2a5c684";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
+  var TOPIC_URL = "https://ntfy.sh/atd-84fdff457a1949249ba7f76d";
   var t0 = performance.now();
   var store = null;
   try { store = window.localStorage; } catch (e) {}
@@ -165,6 +172,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
               screen: screen.width + "x" + screen.height + " dpr " + (window.atdRealDpr || window.devicePixelRatio)
                 + " холст ×" + window.devicePixelRatio,
               state: "visible", lines: [] };
+  cur.sid = Math.random().toString(36).slice(2, 7);
   function save() {
     if (!store) return;
     try { store.setItem(KEY, JSON.stringify(cur)); } catch (e) {
@@ -173,12 +181,14 @@ html, body { height: 100%; margin: 0; background: #141a14; }
     }
   }
   function stamp() { return ((performance.now() - t0) / 1000).toFixed(1) + "с"; }
-  var errors = 0;
+  var errors = 0, logged = 0;
   function log(kind, text) {
     if (kind === "ОШИБКА") {
       errors++;
+      try { sendSoon(); } catch (e) {}
       try { showUntil = performance.now() + 10000; } catch (e) {}  // red badge: "ошибка, тап — журнал"
     }
+    logged++;
     cur.lines.push(stamp() + " " + kind + " " + String(text).slice(0, 300));
     if (cur.lines.length > MAX_LINES) cur.lines.splice(0, cur.lines.length - MAX_LINES);
   }
@@ -261,6 +271,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
     cur.state = document.visibilityState;
     log("·", document.visibilityState === "visible" ? "вернулись в игру" : "игра свёрнута");
     save();
+    if (document.visibilityState === "hidden") try { send("свёрнута", true); } catch (e) {}
   });
   window.addEventListener("pagehide", function () { cur.state = "closed"; log("·", "страница закрыта"); save(); });
   window.addEventListener("pageshow", function () { cur.state = "visible"; save(); });
@@ -271,6 +282,52 @@ html, body { height: 100%; margin: 0; background: #141a14; }
   var prevErrors = prev && prev.lines ? prev.lines.filter(function (l) { return l.indexOf(" ОШИБКА ") >= 0; }) : [];
   if (crashed) log("·", "прошлый запуск оборвался во время игры");
   save();
+
+  // --- sending to ntfy.sh ---
+  var ua = navigator.userAgent;
+  var device = (/iPhone/.test(ua) ? "iPhone" : /iPad|Macintosh.*Mobile/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "iPad"
+    : /Android/.test(ua) ? "Android" : /Macintosh/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : "другое")
+    + (navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches) ? ", с экрана Домой" : "");
+  var sentLines = 0, sentAt = -1e9, sendTimer = 0;
+  function post(text, beacon) {
+    // 3500 bytes per part leaves room for the header line under ntfy's 4 KB
+    var parts = [], chunk = "";
+    text.split("\n").forEach(function (l) {
+      if (chunk && new Blob([chunk + l]).size > 3500) { parts.push(chunk); chunk = ""; }
+      chunk += l.slice(0, 1000) + "\n";
+    });
+    if (chunk) parts.push(chunk);
+    parts.forEach(function (body, i) {
+      if (parts.length > 1) body = "(" + (i + 1) + "/" + parts.length + ") " + body;
+      try {
+        if (beacon && navigator.sendBeacon) navigator.sendBeacon(TOPIC_URL, body);
+        else fetch(TOPIC_URL, { method: "POST", body: body, keepalive: body.length < 60000, mode: "no-cors" }).catch(function () {});
+      } catch (e) {}
+    });
+  }
+  function head(s, what) {
+    return what + " · сборка " + String(s.build).slice(0, 6) + " · " + device + " · " + s.screen + " · запуск " + s.sid
+      + " от " + String(s.started).slice(11, 19) + " UTC\n";
+  }
+  function send(what, beacon) {
+    sentAt = performance.now();
+    var fresh = logged === sentLines ? [] : cur.lines.slice(-Math.min(60, logged - sentLines, cur.lines.length));
+    sentLines = logged;
+    if (what === "пульс") fresh = fresh.filter(function (l) { return l.indexOf(" · ") < 0; });  // pulse: state + new warnings only
+    var last = "сейчас: " + fps.toFixed(0) + " к/с" + memText() + gameText();
+    post(head(cur, what) + last + "\n" + fresh.join("\n"), beacon);
+  }
+  function sendSoon() {  // errors come in bursts: one message per 5 s carries all of them
+    if (sendTimer) return;
+    sendTimer = setTimeout(function () { sendTimer = 0; send("ОШИБКА"); }, Math.max(0, 5000 - (performance.now() - sentAt)));
+  }
+  if (prev && prev.sid && (crashed || prevErrors.length)) {
+    var pe = prevErrors.slice(-15), pl = prev.lines.slice(-40);
+    post(head(prev, crashed ? "ПРОШЛЫЙ ЗАПУСК ОБОРВАЛСЯ" : "в прошлом запуске были ошибки")
+      + (pe.length ? "ошибки:\n" + pe.join("\n") + "\nпоследние строки:\n" : "") + pl.join("\n"));
+  }
+  sentLines = logged;
+  setInterval(function () { if (document.visibilityState === "visible") send("пульс"); }, 120000);
 
   // --- badge, tap zone, journal panel ---
   var css = document.createElement("style");
@@ -421,7 +478,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=17c2c793cc64"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-4c86219bd4.wasm?v=17c2c793cc64", "pck/1-91a95cd478.wasm?v=17c2c793cc64", "pck/2-63be2ce713.wasm?v=17c2c793cc64", "pck/3-4a0ea3cef8.wasm?v=17c2c793cc64"], "sizes": [14000000, 14000000, 14000000, 13693296], "gzip": false, "size": 55693296, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=e6d0f2a5c684"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-99460788f6.wasm?v=e6d0f2a5c684", "pck/1-77d8ed611c.wasm?v=e6d0f2a5c684", "pck/2-e23f65051c.wasm?v=e6d0f2a5c684", "pck/3-26f7b92d2e.wasm?v=e6d0f2a5c684"], "sizes": [14000000, 14000000, 14000000, 12249712], "gzip": false, "size": 54249712, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1370,7 +1427,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55693296,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":54249712,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1477,7 +1534,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "17c2c793cc64"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "e6d0f2a5c684"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
