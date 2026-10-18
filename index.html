@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 930ee0d8c39a replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with 55d1e6e0e8b0 replaced.
 //
 // - Badge (top-left): "сборка XXXXXX · 60 к/с" for 6 s after start. Tapping that corner later opens
 //   the journal panel: live FPS / worst frame, memory, the last log lines, "Скопировать".
@@ -156,7 +156,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 //   launch that broke off or had errors (its last 40 lines), every 2 min as a pulse while the page is
 //   visible, and when the page is hidden. ntfy takes 4 KB per message, so longer texts go in parts.
 (function () {
-  var BUILD = "930ee0d8c39a";
+  var BUILD = "55d1e6e0e8b0";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   var TOPIC_URL = "https://ntfy.sh/atd-84fdff457a1949249ba7f76d";
@@ -478,7 +478,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=930ee0d8c39a"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-e0ab5baba0.wasm?v=930ee0d8c39a", "pck/1-91a95cd478.wasm?v=930ee0d8c39a", "pck/2-63be2ce713.wasm?v=930ee0d8c39a", "pck/3-070d4dd860.wasm?v=930ee0d8c39a"], "sizes": [14000000, 14000000, 14000000, 13693760], "gzip": false, "size": 55693760, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=55d1e6e0e8b0"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-46797d8c2b.wasm?v=55d1e6e0e8b0", "pck/1-4f940494f9.wasm?v=55d1e6e0e8b0", "pck/2-4323769d2f.wasm?v=55d1e6e0e8b0", "pck/3-917c78e48d.wasm?v=55d1e6e0e8b0", "pck/4-af4db7b6a8.wasm?v=55d1e6e0e8b0"], "sizes": [14000000, 14000000, 14000000, 14000000, 308944], "gzip": false, "size": 56308944, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1427,7 +1427,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55693760,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":56308944,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1534,7 +1534,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "930ee0d8c39a"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "55d1e6e0e8b0"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
