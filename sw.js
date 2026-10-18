@@ -4,8 +4,8 @@
 // everything else (the page itself, sw.js, manifest, icons) is network-first and
 // revalidated past the HTTP cache, so a new deploy shows up on the next launch;
 // the cached copy is used only when the network fails or stalls.
-const BUILD = "17bdddd220ec";
-const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0.wasm?v=17bdddd220ec", "pck/0.wasm?v=17bdddd220ec", "pck/1.wasm?v=17bdddd220ec", "pck/2.wasm?v=17bdddd220ec", "pck/3.wasm?v=17bdddd220ec"];
+const BUILD = "7e18e0a22aae";
+const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0.wasm?v=7e18e0a22aae", "pck/0.wasm?v=7e18e0a22aae", "pck/1.wasm?v=7e18e0a22aae", "pck/2.wasm?v=7e18e0a22aae", "pck/3.wasm?v=7e18e0a22aae"];
 const CACHE = "archertd-" + BUILD;
 const NET_TIMEOUT = 8000;
 

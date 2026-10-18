@@ -113,18 +113,6 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <meta name="theme-color" content="#141a14">
-<style>
-#build-badge {
-  position: fixed; z-index: 9; pointer-events: none;
-  top: calc(env(safe-area-inset-top, 0px) + 4px);
-  left: calc(env(safe-area-inset-left, 0px) + 6px);
-  padding: 3px 6px; border-radius: 4px;
-  font: 11px/1 -apple-system, system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.45);
-  animation: build-badge-out 6s linear forwards;
-}
-@keyframes build-badge-out { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
-</style>
 </head>
 <body>
 
@@ -144,6 +132,249 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 		<script>
 (function () {
+  var real = window.devicePixelRatio || 1;
+  window.atdRealDpr = real;
+  if (real <= 2) return;
+  try { Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; }, configurable: true }); } catch (e) {}
+}());
+</script>
+<script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
+// a page reload. web_artifact.py inlines this file before the engine script, with 7e18e0a22aae replaced.
+//
+// - Badge (top-left): "сборка XXXXXX · 60 к/с" for 6 s after start. Tapping that corner later opens
+//   the journal panel: live FPS / worst frame, memory, the last log lines, "Скопировать".
+// - Journal: every 3 s one line goes to localStorage (time since start, FPS, worst frame, JS heap
+//   where the browser tells it, game state from Mobile.gd via window.atdDiag.game()), plus every
+//   console error/warning, uncaught error, WebGL context loss and page hide/show.
+// - Crash detection: the page marks the session "alive" while visible. If the next start finds the
+//   previous session still alive (Safari killed or reloaded the page while playing), it shows
+//   "Прошлый запуск оборвался" with the previous journal and a copy button.
+(function () {
+  var BUILD = "7e18e0a22aae";
+  var KEY = "atd_diag";
+  var MAX_LINES = 400;
+  var t0 = performance.now();
+  var store = null;
+  try { store = window.localStorage; } catch (e) {}
+
+  function load() {
+    try { return JSON.parse(store.getItem(KEY)) || null; } catch (e) { return null; }
+  }
+  var prev = load();
+  var cur = { build: BUILD, started: new Date().toISOString(), ua: navigator.userAgent,
+              screen: screen.width + "x" + screen.height + " dpr " + (window.atdRealDpr || window.devicePixelRatio)
+                + " холст ×" + window.devicePixelRatio,
+              state: "visible", lines: [] };
+  function save() {
+    if (!store) return;
+    try { store.setItem(KEY, JSON.stringify(cur)); } catch (e) {
+      cur.lines.splice(0, cur.lines.length >> 1);  // quota: drop the older half
+      try { store.setItem(KEY, JSON.stringify(cur)); } catch (e2) {}
+    }
+  }
+  function stamp() { return ((performance.now() - t0) / 1000).toFixed(1) + "с"; }
+  var errors = 0;
+  function log(kind, text) {
+    if (kind === "ОШИБКА") {
+      errors++;
+      try { showUntil = performance.now() + 10000; } catch (e) {}  // red badge: "ошибка, тап — журнал"
+    }
+    cur.lines.push(stamp() + " " + kind + " " + String(text).slice(0, 300));
+    if (cur.lines.length > MAX_LINES) cur.lines.splice(0, cur.lines.length - MAX_LINES);
+  }
+
+  // --- frame rate: the engine draws on requestAnimationFrame, so rAF ticks are game frames ---
+  var frames = 0, worst = 0, last = 0, fps = 0, worstShown = 0, long50 = 0;
+  function tick(now) {
+    if (last) {
+      var dt = now - last;
+      if (dt > worst) worst = dt;
+      if (dt > 50) long50++;
+    }
+    last = now;
+    frames++;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  var lastSample = performance.now();
+  var gameSeen = false;
+
+  // Memory of the game itself (the wasm heap): it only grows, so its size is the peak the game needed.
+  var wasmMem = null;
+  ["instantiate", "instantiateStreaming"].forEach(function (k) {
+    var orig = WebAssembly[k];
+    if (!orig) return;
+    WebAssembly[k] = function () {
+      return orig.apply(WebAssembly, arguments).then(function (r) {
+        try {
+          var ex = (r.instance || r).exports;
+          for (var n in ex) if (ex[n] instanceof WebAssembly.Memory) wasmMem = ex[n];
+        } catch (e) {}
+        return r;
+      });
+    };
+  });
+  function memText() {
+    var t = wasmMem ? " игра " + (wasmMem.buffer.byteLength / 1048576).toFixed(0) + "МБ" : "";
+    var m = performance.memory;  // Chrome only; Safari has no JS heap numbers
+    return t + (m ? " js " + (m.usedJSHeapSize / 1048576).toFixed(0) + "МБ" : "");
+  }
+  function gameText() {
+    try { return window.atdDiag.game ? " | " + window.atdDiag.game : ""; } catch (e) { return ""; }
+  }
+  function sample() {
+    var now = performance.now();
+    fps = frames * 1000 / (now - lastSample);
+    worstShown = worst;
+    var line = "кадры " + fps.toFixed(0) + " к/с, худший " + worst.toFixed(0) + " мс, >50мс: " + long50
+      + memText() + gameText();
+    frames = 0; worst = 0; long50 = 0; lastSample = now;
+    if (!gameSeen && window.atdDiag.game) {  // the game is up: show the badge with FPS for 6 s again
+      gameSeen = true;
+      showUntil = performance.now() + 6000;
+    }
+    if (document.visibilityState === "visible") log("·", line);
+    cur.state = document.visibilityState;
+    save();
+    render();
+  }
+  setInterval(sample, 3000);
+
+  // --- errors and warnings ---
+  ["error", "warn"].forEach(function (k) {
+    var orig = console[k].bind(console);
+    console[k] = function () {
+      try {
+        var t = Array.prototype.join.call(arguments, " ");
+        // "ERROR: ..." from the engine is usually harmless (the same lines print on every start);
+        // script errors, failed loads and anything else from the page count as real errors.
+        var kind = k !== "error" ? "внимание" : (/^\s*(ERROR|WARNING|at):/.test(t) && !/SCRIPT ERROR/.test(t)) ? "движок" : "ОШИБКА";
+        log(kind, t);
+      } catch (e) {}
+      return orig.apply(null, arguments);
+    };
+  });
+  window.addEventListener("error", function (e) { log("ОШИБКА", (e.message || e) + " " + (e.filename || "") + ":" + (e.lineno || "")); save(); });
+  window.addEventListener("unhandledrejection", function (e) { log("ОШИБКА", "promise: " + (e.reason && e.reason.message || e.reason)); save(); });
+  document.addEventListener("webglcontextlost", function () { log("ОШИБКА", "WebGL контекст потерян (память видео)"); save(); }, true);
+  document.addEventListener("visibilitychange", function () {
+    cur.state = document.visibilityState;
+    log("·", document.visibilityState === "visible" ? "вернулись в игру" : "игра свёрнута");
+    save();
+  });
+  window.addEventListener("pagehide", function () { cur.state = "closed"; log("·", "страница закрыта"); save(); });
+  window.addEventListener("pageshow", function () { cur.state = "visible"; save(); });
+
+  window.atdDiag = { game: "", log: log };  // Mobile.gd writes the game state into atdDiag.game
+  log("·", "старт, сборка " + BUILD.slice(0, 6) + ", экран " + cur.screen);
+  var crashed = prev && prev.state === "visible" && prev.lines && prev.lines.length;
+  var prevErrors = prev && prev.lines ? prev.lines.filter(function (l) { return l.indexOf(" ОШИБКА ") >= 0; }) : [];
+  if (crashed) log("·", "прошлый запуск оборвался во время игры");
+  save();
+
+  // --- badge, tap zone, journal panel ---
+  var css = document.createElement("style");
+  css.textContent =
+    "#atd-badge{position:fixed;z-index:20;top:calc(env(safe-area-inset-top,0px) + 4px);" +
+    "left:calc(env(safe-area-inset-left,0px) + 6px);padding:4px 7px;border-radius:5px;" +
+    "font:11px/1.2 -apple-system,system-ui,sans-serif;color:rgba(255,255,255,.85);background:rgba(0,0,0,.5);" +
+    "transition:opacity .6s;-webkit-user-select:none;user-select:none;pointer-events:none}" +
+    "#atd-badge.err{background:rgba(170,20,20,.9);color:#fff}" +
+    "#atd-panel{position:fixed;z-index:21;left:calc(env(safe-area-inset-left,0px) + 8px);right:calc(env(safe-area-inset-right,0px) + 8px);" +
+    "top:calc(env(safe-area-inset-top,0px) + 8px);bottom:8px;display:none;flex-direction:column;gap:6px;padding:10px;" +
+    "border-radius:10px;background:#f4efe3;color:#222;font:12px/1.35 -apple-system,system-ui,sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.5)}" +
+    "#atd-panel pre{flex:1;margin:0;overflow:auto;white-space:pre-wrap;background:#fff;border:1px solid #d8cfb8;border-radius:6px;padding:6px;font:11px/1.3 ui-monospace,Menlo,monospace;-webkit-user-select:text;user-select:text}" +
+    "#atd-panel button{font:600 14px -apple-system,system-ui,sans-serif;padding:9px 14px;border-radius:8px;border:0;background:#2f6b3a;color:#fff;margin-right:6px}" +
+    "#atd-panel button.alt{background:#8a7f6a}";
+  document.head.appendChild(css);
+  var badge = document.createElement("div");
+  badge.id = "atd-badge";
+  var panel = document.createElement("div");
+  panel.id = "atd-panel";
+  panel.innerHTML = "<b id='atd-title'></b><div id='atd-live'></div><pre id='atd-text'></pre>" +
+    "<div><button id='atd-copy'>Скопировать журнал</button><button id='atd-close' class='alt'>Закрыть</button></div>";
+  var showUntil = performance.now() + 6000;
+  var showPrev = !!crashed || prevErrors.length > 0;
+
+  function journalText() {
+    var parts = [];
+    if (showPrev) {
+      parts.push("ПРОШЛЫЙ ЗАПУСК (" + (crashed ? "оборвался" : "были ошибки") + "): сборка " + prev.build.slice(0, 6) + ", начат " + prev.started +
+        "\n" + prev.ua + "\nэкран " + prev.screen + "\n" + prev.lines.join("\n"));
+    }
+    var errs = (showPrev ? prevErrors : []).concat(cur.lines.filter(function (l) { return l.indexOf(" ОШИБКА ") >= 0; }));
+    if (errs.length) parts.unshift("ОШИБКИ:\n" + errs.slice(-30).join("\n"));
+    parts.push("ЭТОТ ЗАПУСК: сборка " + BUILD.slice(0, 6) + ", начат " + cur.started + "\n" + cur.ua +
+      "\nэкран " + cur.screen + "\n" + cur.lines.join("\n"));
+    return parts.join("\n\n");
+  }
+  function render() {
+    badge.textContent = "сборка " + BUILD.slice(0, 6) + (fps ? " · " + fps.toFixed(0) + " к/с" : "") +
+      (errors ? " · ошибок " + errors + ", тап — журнал" : "");
+    badge.className = errors ? "err" : "";
+    badge.style.opacity = performance.now() < showUntil ? "1" : "0";
+    if (panel.style.display === "flex") {
+      document.getElementById("atd-title").textContent = !showPrev ? "Журнал игры" :
+        crashed ? "Прошлый запуск оборвался, вот журнал" : "В прошлом запуске были ошибки, вот журнал";
+      document.getElementById("atd-live").textContent = "Сейчас: " + fps.toFixed(0) + " кадров в секунду, худший кадр " +
+        worstShown.toFixed(0) + " мс" + memText() + gameText();
+      var pre = document.getElementById("atd-text");
+      var atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 4;
+      pre.textContent = journalText();
+      if (atEnd) pre.scrollTop = pre.scrollHeight;
+    }
+  }
+  function openPanel() {
+    panel.style.display = "flex";
+    render();
+    var pre = document.getElementById("atd-text");
+    pre.scrollTop = pre.scrollHeight;
+  }
+  // Tap zone over the badge corner: the badge itself fades out, the zone stays (tiny, top-left).
+  var zone = document.createElement("div");
+  zone.style.cssText = "position:fixed;z-index:19;top:0;left:0;width:calc(env(safe-area-inset-left,0px) + 90px);" +
+    "height:calc(env(safe-area-inset-top,0px) + 22px)";
+  function onZone(e) {
+    e.preventDefault(); e.stopPropagation();
+    if (performance.now() < showUntil) { openPanel(); return; }  // second tap while visible opens the journal
+    showUntil = performance.now() + 6000;
+    render();
+  }
+  zone.addEventListener("touchend", onZone, { passive: false });
+  zone.addEventListener("click", onZone);
+  ["touchstart", "mousedown", "pointerdown"].forEach(function (k) {
+    zone.addEventListener(k, function (e) { e.stopPropagation(); });
+  });
+  function attach() {
+    document.body.appendChild(zone);
+    document.body.appendChild(badge);
+    document.body.appendChild(panel);
+    document.getElementById("atd-copy").onclick = function () {
+      var t = journalText();
+      var done = function () { document.getElementById("atd-copy").textContent = "Скопировано"; };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(t).then(done, function () { fallbackCopy(t); done(); });
+      } else { fallbackCopy(t); done(); }
+    };
+    document.getElementById("atd-close").onclick = function () { panel.style.display = "none"; showPrev = false; };
+    ["touchstart", "touchend", "mousedown", "pointerdown", "click"].forEach(function (k) {
+      panel.addEventListener(k, function (e) { e.stopPropagation(); });
+    });
+    render();
+    if (showPrev) openPanel();
+  }
+  function fallbackCopy(t) {
+    var ta = document.createElement("textarea");
+    ta.value = t; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    ta.remove();
+  }
+  if (document.body) attach(); else document.addEventListener("DOMContentLoaded", attach);
+  setInterval(render, 500);
+}());
+</script>
+<script>
+(function () {
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
   const Real = window.AudioContext || window.webkitAudioContext;
   if (!Real) return;
@@ -161,7 +392,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm?v=17bdddd220ec"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm?v=17bdddd220ec", "pck/1.wasm?v=17bdddd220ec", "pck/2.wasm?v=17bdddd220ec", "pck/3.wasm?v=17bdddd220ec"], "gzip": false, "size": 55656912, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0.wasm?v=7e18e0a22aae"], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0.wasm?v=7e18e0a22aae", "pck/1.wasm?v=7e18e0a22aae", "pck/2.wasm?v=7e18e0a22aae", "pck/3.wasm?v=7e18e0a22aae"], "gzip": false, "size": 55693200, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1104,7 +1335,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55656912,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55693200,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1211,14 +1442,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "17bdddd220ec"; // same value as BUILD in sw.js; bumped together on every deploy
-
-  // Build badge (top-left, fades out, see #build-badge in <head>) so it is obvious which build runs.
-  var badge = document.createElement('div');
-  badge.id = 'build-badge';
-  badge.textContent = 'сборка ' + BUILD.slice(0, 6);
-  badge.addEventListener('animationend', function () { badge.remove(); });
-  document.body.appendChild(badge);
+  var BUILD = "7e18e0a22aae"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
