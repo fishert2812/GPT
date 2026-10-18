@@ -2,8 +2,8 @@
 // Game parts carry ?v=BUILD in their URL, so they are served from cache forever;
 // everything else (the page itself, icons) goes to the network first, so a new
 // deploy shows up on the next launch, and falls back to the cache offline.
-const BUILD = "d8fc659b60fc";
-const PRECACHE = ["./", "index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0.wasm?v=d8fc659b60fc", "pck/0.wasm?v=d8fc659b60fc", "pck/1.wasm?v=d8fc659b60fc", "pck/2.wasm?v=d8fc659b60fc", "pck/3.wasm?v=d8fc659b60fc", "pck/4.wasm?v=d8fc659b60fc", "pck/5.wasm?v=d8fc659b60fc"];
+const BUILD = "4129154dbd6c";
+const PRECACHE = ["./", "index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0.wasm?v=4129154dbd6c", "pck/0.wasm?v=4129154dbd6c", "pck/1.wasm?v=4129154dbd6c", "pck/2.wasm?v=4129154dbd6c", "pck/3.wasm?v=4129154dbd6c"];
 const CACHE = "archertd-" + BUILD;
 
 self.addEventListener("install", (e) => {
