@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 93e43d1778a3 replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with 17c2c793cc64 replaced.
 //
 // - Badge (top-left): "сборка XXXXXX · 60 к/с" for 6 s after start. Tapping that corner later opens
 //   the journal panel: live FPS / worst frame, memory, the last log lines, "Скопировать".
@@ -150,7 +150,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 //   previous session still alive (Safari killed or reloaded the page while playing), it shows
 //   "Прошлый запуск оборвался" with the previous journal and a copy button.
 (function () {
-  var BUILD = "93e43d1778a3";
+  var BUILD = "17c2c793cc64";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   var t0 = performance.now();
@@ -421,7 +421,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=93e43d1778a3"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-8cc6526920.wasm?v=93e43d1778a3", "pck/1-91a95cd478.wasm?v=93e43d1778a3", "pck/2-63be2ce713.wasm?v=93e43d1778a3", "pck/3-02d9b4179a.wasm?v=93e43d1778a3"], "sizes": [14000000, 14000000, 14000000, 13693584], "gzip": false, "size": 55693584, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=17c2c793cc64"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-4c86219bd4.wasm?v=17c2c793cc64", "pck/1-91a95cd478.wasm?v=17c2c793cc64", "pck/2-63be2ce713.wasm?v=17c2c793cc64", "pck/3-4a0ea3cef8.wasm?v=17c2c793cc64"], "sizes": [14000000, 14000000, 14000000, 13693296], "gzip": false, "size": 55693296, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1370,7 +1370,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55693584,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":55693296,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1477,7 +1477,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "93e43d1778a3"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "17c2c793cc64"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
