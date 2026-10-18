@@ -5,9 +5,9 @@
 // everything else (the page itself, sw.js, manifest, icons) is network-first and
 // revalidated past the HTTP cache, so a new deploy shows up on the next launch;
 // the cached copy is used only when the network fails or stalls.
-const BUILD = "55d1e6e0e8b0";
-const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm?v=55d1e6e0e8b0", "pck/0-46797d8c2b.wasm?v=55d1e6e0e8b0", "pck/1-4f940494f9.wasm?v=55d1e6e0e8b0", "pck/2-4323769d2f.wasm?v=55d1e6e0e8b0", "pck/3-917c78e48d.wasm?v=55d1e6e0e8b0", "pck/4-af4db7b6a8.wasm?v=55d1e6e0e8b0"];
-const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-46797d8c2b.wasm": 14000000, "1-4f940494f9.wasm": 14000000, "2-4323769d2f.wasm": 14000000, "3-917c78e48d.wasm": 14000000, "4-af4db7b6a8.wasm": 308944};
+const BUILD = "8220627e4181";
+const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm?v=8220627e4181", "pck/0-34d5fab923.wasm?v=8220627e4181", "pck/1-4f940494f9.wasm?v=8220627e4181", "pck/2-4323769d2f.wasm?v=8220627e4181", "pck/3-2b5bb0d11e.wasm?v=8220627e4181", "pck/4-097ef7b299.wasm?v=8220627e4181"];
+const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-34d5fab923.wasm": 14000000, "1-4f940494f9.wasm": 14000000, "2-4323769d2f.wasm": 14000000, "3-2b5bb0d11e.wasm": 14000000, "4-097ef7b299.wasm": 309136};
 const CACHE = "archertd-" + BUILD;
 const NET_TIMEOUT = 8000;
 
@@ -63,6 +63,8 @@ self.addEventListener("message", (e) => {
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) return;
+  // The page's build check must see the network, never a cache (and must not fill the cache).
+  if (new URL(req.url).pathname.endsWith("/version.json")) return;
   if (new URL(req.url).searchParams.has("fresh")) {
     // The page re-fetching a part that came back the wrong size: straight to the network, not cached.
     e.respondWith(fetch(req.url, { cache: "reload" }));

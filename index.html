@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 55d1e6e0e8b0 replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with 8220627e4181 replaced.
 //
 // - Badge (top-left): "сборка XXXXXX · 60 к/с" for 6 s after start. Tapping that corner later opens
 //   the journal panel: live FPS / worst frame, memory, the last log lines, "Скопировать".
@@ -156,9 +156,11 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 //   launch that broke off or had errors (its last 40 lines), every 2 min as a pulse while the page is
 //   visible, and when the page is hidden. ntfy takes 4 KB per message, so longer texts go in parts.
 (function () {
-  var BUILD = "55d1e6e0e8b0";
+  var BUILD = "8220627e4181";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
+  // Browser extensions (wallets and the like) inject scripts into every page; their failures are not ours.
+  var EXT = /-extension:\/\/|MetaMask|M_ID/;
   var TOPIC_URL = "https://ntfy.sh/atd-84fdff457a1949249ba7f76d";
   var t0 = performance.now();
   var store = null;
@@ -258,14 +260,21 @@ html, body { height: 100%; margin: 0; background: #141a14; }
         var t = Array.prototype.join.call(arguments, " ");
         // "ERROR: ..." from the engine is usually harmless (the same lines print on every start);
         // script errors, failed loads and anything else from the page count as real errors.
-        var kind = k !== "error" ? "внимание" : (/^\s*(ERROR|WARNING|at):/.test(t) && !/SCRIPT ERROR/.test(t)) ? "движок" : "ОШИБКА";
+        var kind = k !== "error" ? "внимание" : (/^\s*(ERROR|WARNING|at):/.test(t) && !/SCRIPT ERROR/.test(t)) ? "движок" : kindOf(t);
         log(kind, t);
       } catch (e) {}
       return orig.apply(null, arguments);
     };
   });
-  window.addEventListener("error", function (e) { log("ОШИБКА", (e.message || e) + " " + (e.filename || "") + ":" + (e.lineno || "")); save(); });
-  window.addEventListener("unhandledrejection", function (e) { log("ОШИБКА", "promise: " + (e.reason && e.reason.message || e.reason)); save(); });
+  function kindOf(text, stack) { return EXT.test(text) || EXT.test(stack || "") ? "расширение" : "ОШИБКА"; }
+  window.addEventListener("error", function (e) {
+    var t = (e.message || e) + " " + (e.filename || "") + ":" + (e.lineno || "");
+    log(kindOf(t, e.error && e.error.stack), t); save();
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    var r = e.reason, t = "promise: " + (r && r.message || r);
+    log(kindOf(t, r && r.stack), t); save();
+  });
   document.addEventListener("webglcontextlost", function () { log("ОШИБКА", "WebGL контекст потерян (память видео)"); save(); }, true);
   document.addEventListener("visibilitychange", function () {
     cur.state = document.visibilityState;
@@ -280,8 +289,16 @@ html, body { height: 100%; margin: 0; background: #141a14; }
   log("·", "старт, сборка " + BUILD.slice(0, 6) + ", экран " + cur.screen);
   var crashed = prev && prev.state === "visible" && prev.lines && prev.lines.length;
   var prevErrors = prev && prev.lines ? prev.lines.filter(function (l) { return l.indexOf(" ОШИБКА ") >= 0; }) : [];
-  if (crashed) log("·", "прошлый запуск оборвался во время игры");
   save();
+  // Another tab of the game in this browser writes the same journal and is "visible" too: that is not
+  // a broken launch. Ask the other tabs over BroadcastChannel; a live one answers within a moment,
+  // a page the browser killed cannot. (Safari reloads a killed page at once, so a heartbeat age won't do.)
+  var otherTab = false, bc = null;
+  try { bc = new BroadcastChannel("atd-tabs"); } catch (e) {}
+  if (bc) bc.onmessage = function (e) {
+    if (e.data === "ping") bc.postMessage("pong");
+    else if (e.data === "pong") otherTab = true;
+  };
 
   // --- sending to ntfy.sh ---
   var ua = navigator.userAgent;
@@ -321,11 +338,23 @@ html, body { height: 100%; margin: 0; background: #141a14; }
     if (sendTimer) return;
     sendTimer = setTimeout(function () { sendTimer = 0; send("ОШИБКА"); }, Math.max(0, 5000 - (performance.now() - sentAt)));
   }
-  if (prev && prev.sid && (crashed || prevErrors.length)) {
-    var pe = prevErrors.slice(-15), pl = prev.lines.slice(-40);
-    post(head(prev, crashed ? "ПРОШЛЫЙ ЗАПУСК ОБОРВАЛСЯ" : "в прошлом запуске были ошибки")
-      + (pe.length ? "ошибки:\n" + pe.join("\n") + "\nпоследние строки:\n" : "") + pl.join("\n"));
+  function decide() {
+    if (otherTab) {
+      log("·", "открыта ещё одна вкладка с игрой: её журнал не считается прошлым запуском");
+      crashed = false; prevErrors = [];
+    }
+    if (crashed) log("·", "прошлый запуск оборвался во время игры");
+    if (prev && prev.sid && (crashed || prevErrors.length)) {
+      var pe = prevErrors.slice(-15), pl = prev.lines.slice(-40);
+      post(head(prev, crashed ? "ПРОШЛЫЙ ЗАПУСК ОБОРВАЛСЯ" : "в прошлом запуске были ошибки")
+        + (pe.length ? "ошибки:\n" + pe.join("\n") + "\nпоследние строки:\n" : "") + pl.join("\n"));
+    }
+    showPrev = !!crashed || prevErrors.length > 0;
+    if (showPrev && attached) openPanel();
+    sentLines = logged;
   }
+  if (bc && (crashed || prevErrors.length)) { bc.postMessage("ping"); setTimeout(decide, 700); }
+  else setTimeout(decide, 0);
   sentLines = logged;
   setInterval(function () { if (document.visibilityState === "visible") send("пульс"); }, 120000);
 
@@ -351,7 +380,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
   panel.innerHTML = "<b id='atd-title'></b><div id='atd-live'></div><pre id='atd-text'></pre>" +
     "<div><button id='atd-copy'>Скопировать журнал</button><button id='atd-close' class='alt'>Закрыть</button></div>";
   var showUntil = performance.now() + 6000;
-  var showPrev = !!crashed || prevErrors.length > 0;
+  var showPrev = false, attached = false;  // set by decide()
 
   function journalText() {
     var parts = [];
@@ -417,6 +446,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
     ["touchstart", "touchend", "mousedown", "pointerdown", "click"].forEach(function (k) {
       panel.addEventListener(k, function (e) { e.stopPropagation(); });
     });
+    attached = true;
     render();
     if (showPrev) openPanel();
   }
@@ -478,7 +508,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=55d1e6e0e8b0"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-46797d8c2b.wasm?v=55d1e6e0e8b0", "pck/1-4f940494f9.wasm?v=55d1e6e0e8b0", "pck/2-4323769d2f.wasm?v=55d1e6e0e8b0", "pck/3-917c78e48d.wasm?v=55d1e6e0e8b0", "pck/4-af4db7b6a8.wasm?v=55d1e6e0e8b0"], "sizes": [14000000, 14000000, 14000000, 14000000, 308944], "gzip": false, "size": 56308944, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=8220627e4181"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-34d5fab923.wasm?v=8220627e4181", "pck/1-4f940494f9.wasm?v=8220627e4181", "pck/2-4323769d2f.wasm?v=8220627e4181", "pck/3-2b5bb0d11e.wasm?v=8220627e4181", "pck/4-097ef7b299.wasm?v=8220627e4181"], "sizes": [14000000, 14000000, 14000000, 14000000, 309136], "gzip": false, "size": 56309136, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1427,7 +1457,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":56308944,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":56309136,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1534,7 +1564,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "55d1e6e0e8b0"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "8220627e4181"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
@@ -1552,8 +1582,36 @@ const engine = new Engine(GODOT_CONFIG);
     ctl.postMessage({ type: 'build' }, [ch.port2]);
   });
 
+  // A browser can still open an old build from its cache (the page itself or a waiting worker).
+  // version.json next to the page is read straight from the network: a different build there means
+  // "Обновление…", a worker update, and one reload (once per new build, so a stale CDN copy of the
+  // page can never loop us).
+  var swReg = null;
+  var upToDate = function () {
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) {
+      return r.ok ? r.json() : null;
+    }).then(function (v) {
+      if (!v || !v.build || v.build === BUILD) return;
+      var key = 'atd_upd_' + v.build;
+      try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) { return; }
+      var note = document.createElement('div');
+      note.textContent = 'Обновление…';
+      note.style.cssText = 'position:fixed;z-index:30;left:50%;top:40%;transform:translateX(-50%);padding:12px 22px;' +
+        'border-radius:10px;background:#f4efe3;color:#222;font:600 18px -apple-system,system-ui,sans-serif';
+      document.body.appendChild(note);
+      var go = function () { if (!reloaded) { reloaded = true; location.reload(); } };
+      if (swReg) swReg.update().catch(function () {});
+      setTimeout(go, 4000);  // the controllerchange listener above usually reloads sooner
+    }).catch(function () {});
+  };
+  upToDate();
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') upToDate();
+  });
+
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+      swReg = reg;
       var check = function () { reg.update().catch(function () {}); };
       check();
       // iOS keeps a home-screen app alive for days; re-check for a new build every time it comes back.
