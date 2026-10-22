@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with c6f1a5505bd7 replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with 05d3f5e33578 replaced.
 //
 // - Badge, only in dev mode (open once with ?dev=1, it is remembered; ?dev=0 turns it off): "сборка XXXXXX ·
 //   60 к/с" at the left edge; tapping it opens the journal panel: live FPS / worst frame, memory, the last
@@ -148,21 +148,16 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 //   where the browser tells it, game state from Mobile.gd via window.atdDiag.game()), plus every
 //   console error/warning, uncaught error, WebGL context loss and page hide/show.
 // - Crash detection: the page marks the session "alive" while visible. If the next start finds the
-//   previous session still alive (Safari killed or reloaded the page while playing), it sends that, and in
-//   dev mode shows "Прошлый запуск оборвался" with the previous journal and a copy button.
-// - Sending (Roman allowed it on 2026-10-18): the journal also goes to ntfy.sh under a secret topic, so we
-//   read it without anyone copying: https://ntfy.sh/<TOPIC>/json?poll=1&since=12h. Technical data only
-//   (build, device kind, screen, fps, memory, game state, error lines), no user agent or personal data.
-//   Sent on every error (at most one message per 5 s carries all new lines), at start for a previous
-//   launch that broke off or had errors (its last 40 lines), every 2 min as a pulse while the page is
-//   visible, and when the page is hidden. ntfy takes 4 KB per message, so longer texts go in parts.
+//   previous session still alive (Safari killed or reloaded the page while playing), dev mode shows
+//   "Прошлый запуск оборвался" with the previous journal and a copy button.
+// - Nothing leaves the device: the journal lives in localStorage only. (Until 22.10.2026 it was also sent
+//   to ntfy.sh; a game for sale must not collect data without the player's consent.)
 (function () {
-  var BUILD = "c6f1a5505bd7";
+  var BUILD = "05d3f5e33578";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   // Browser extensions (wallets and the like) inject scripts into every page; their failures are not ours.
   var EXT = /-extension:\/\/|MetaMask|M_ID/;
-  var TOPIC_URL = "https://ntfy.sh/atd-84fdff457a1949249ba7f76d";
   var t0 = performance.now();
   var store = null;
   try { store = window.localStorage; } catch (e) {}
@@ -186,10 +181,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
   function stamp() { return ((performance.now() - t0) / 1000).toFixed(1) + "с"; }
   var errors = 0, logged = 0;
   function log(kind, text) {
-    if (kind === "ОШИБКА") {
-      errors++;
-      try { sendSoon(); } catch (e) {}
-    }
+    if (kind === "ОШИБКА") errors++;
     logged++;
     cur.lines.push(stamp() + " " + kind + " " + String(text).slice(0, 300));
     if (cur.lines.length > MAX_LINES) cur.lines.splice(0, cur.lines.length - MAX_LINES);
@@ -275,7 +267,6 @@ html, body { height: 100%; margin: 0; background: #141a14; }
     cur.state = document.visibilityState;
     log("·", document.visibilityState === "visible" ? "вернулись в игру" : "игра свёрнута");
     save();
-    if (document.visibilityState === "hidden") try { send("свёрнута", true); } catch (e) {}
   });
   window.addEventListener("pagehide", function () { cur.state = "closed"; log("·", "страница закрыта"); save(); });
   window.addEventListener("pageshow", function () { cur.state = "visible"; save(); });
@@ -295,67 +286,21 @@ html, body { height: 100%; margin: 0; background: #141a14; }
     else if (e.data === "pong") otherTab = true;
   };
 
-  // --- sending to ntfy.sh ---
-  var ua = navigator.userAgent;
-  var device = (/iPhone/.test(ua) ? "iPhone" : /iPad|Macintosh.*Mobile/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "iPad"
-    : /Android/.test(ua) ? "Android" : /Macintosh/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : "другое")
-    + (navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches) ? ", с экрана Домой" : "");
-  var sentLines = 0, sentAt = -1e9, sendTimer = 0;
-  function post(text, beacon) {
-    // 3500 bytes per part leaves room for the header line under ntfy's 4 KB
-    var parts = [], chunk = "";
-    text.split("\n").forEach(function (l) {
-      if (chunk && new Blob([chunk + l]).size > 3500) { parts.push(chunk); chunk = ""; }
-      chunk += l.slice(0, 1000) + "\n";
-    });
-    if (chunk) parts.push(chunk);
-    parts.forEach(function (body, i) {
-      if (parts.length > 1) body = "(" + (i + 1) + "/" + parts.length + ") " + body;
-      try {
-        if (beacon && navigator.sendBeacon) navigator.sendBeacon(TOPIC_URL, body);
-        else fetch(TOPIC_URL, { method: "POST", body: body, keepalive: body.length < 60000, mode: "no-cors" }).catch(function () {});
-      } catch (e) {}
-    });
-  }
-  function head(s, what) {
-    return what + " · сборка " + String(s.build).slice(0, 6) + " · " + device + " · " + s.screen + " · запуск " + s.sid
-      + " от " + String(s.started).slice(11, 19) + " UTC\n";
-  }
-  function send(what, beacon) {
-    sentAt = performance.now();
-    var fresh = logged === sentLines ? [] : cur.lines.slice(-Math.min(60, logged - sentLines, cur.lines.length));
-    sentLines = logged;
-    if (what === "пульс") fresh = fresh.filter(function (l) { return l.indexOf(" · ") < 0; });  // pulse: state + new warnings only
-    var last = "сейчас: " + fps.toFixed(0) + " к/с" + memText() + gameText();
-    post(head(cur, what) + last + "\n" + fresh.join("\n"), beacon);
-  }
-  function sendSoon() {  // errors come in bursts: one message per 5 s carries all of them
-    if (sendTimer) return;
-    sendTimer = setTimeout(function () { sendTimer = 0; send("ОШИБКА"); }, Math.max(0, 5000 - (performance.now() - sentAt)));
-  }
   function decide() {
     if (otherTab) {
       log("·", "открыта ещё одна вкладка с игрой: её журнал не считается прошлым запуском");
       crashed = false; prevErrors = [];
     }
     if (crashed) log("·", "прошлый запуск оборвался во время игры");
-    if (prev && prev.sid && (crashed || prevErrors.length)) {
-      var pe = prevErrors.slice(-15), pl = prev.lines.slice(-40);
-      post(head(prev, crashed ? "ПРОШЛЫЙ ЗАПУСК ОБОРВАЛСЯ" : "в прошлом запуске были ошибки")
-        + (pe.length ? "ошибки:\n" + pe.join("\n") + "\nпоследние строки:\n" : "") + pl.join("\n"));
-    }
     showPrev = !!crashed || prevErrors.length > 0;
     if (showPrev && attached) openPanel();  // attached only in dev mode
-    sentLines = logged;
   }
   if (bc && (crashed || prevErrors.length)) { bc.postMessage("ping"); setTimeout(decide, 700); }
   else setTimeout(decide, 0);
-  sentLines = logged;
-  setInterval(function () { if (document.visibilityState === "visible") send("пульс"); }, 120000);
 
   // --- badge and journal panel: only for us (?dev=1, remembered; ?dev=0 turns it off) ---
   // Players see nothing: no build text, no hidden tap zone over the game's buttons. The journal is
-  // still written and sent the same way.
+  // still written the same way.
   var DEV = false;
   try {
     var dq = /[?&]dev=([01])/.exec(location.search);
@@ -516,7 +461,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=c6f1a5505bd7"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-17ae3905f8.wasm?v=c6f1a5505bd7", "pck/1-7ce4e885d8.wasm?v=c6f1a5505bd7", "pck/2-6419bee49d.wasm?v=c6f1a5505bd7", "pck/3-25ff89bd6b.wasm?v=c6f1a5505bd7", "pck/4-af107b08f4.wasm?v=c6f1a5505bd7", "pck/5-6831edafb5.wasm?v=c6f1a5505bd7", "pck/6-fa8a85524b.wasm?v=c6f1a5505bd7"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 5376928], "gzip": false, "size": 89376928, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=05d3f5e33578"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-11a4444c50.wasm?v=05d3f5e33578", "pck/1-706274257c.wasm?v=05d3f5e33578", "pck/2-91005e293c.wasm?v=05d3f5e33578", "pck/3-06fb0b27c5.wasm?v=05d3f5e33578", "pck/4-baa25bf343.wasm?v=05d3f5e33578", "pck/5-a882c095ad.wasm?v=05d3f5e33578"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 3872224], "gzip": false, "size": 73872224, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1487,7 +1432,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":89376928,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":73872224,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1594,7 +1539,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "c6f1a5505bd7"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "05d3f5e33578"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
