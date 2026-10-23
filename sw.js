@@ -5,9 +5,9 @@
 // everything else (the page itself, sw.js, manifest, icons) is network-first and
 // revalidated past the HTTP cache, so a new deploy shows up on the next launch;
 // the cached copy is used only when the network fails or stalls.
-const BUILD = "29241afc9c8d";
-const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm?v=29241afc9c8d", "pck/0-90f7a2a2d7.wasm?v=29241afc9c8d", "pck/1-ebf8661d33.wasm?v=29241afc9c8d", "pck/2-0e9935b222.wasm?v=29241afc9c8d", "pck/3-83f94b3ff2.wasm?v=29241afc9c8d", "pck/4-2751c26d54.wasm?v=29241afc9c8d", "pck/5-35cbfcc639.wasm?v=29241afc9c8d"];
-const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-90f7a2a2d7.wasm": 14000000, "1-ebf8661d33.wasm": 14000000, "2-0e9935b222.wasm": 14000000, "3-83f94b3ff2.wasm": 14000000, "4-2751c26d54.wasm": 14000000, "5-35cbfcc639.wasm": 11776336};
+const BUILD = "05a20dfbd826";
+const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm?v=05a20dfbd826", "pck/0-ed5156407b.wasm?v=05a20dfbd826", "pck/1-ebf8661d33.wasm?v=05a20dfbd826", "pck/2-0e9935b222.wasm?v=05a20dfbd826", "pck/3-83f94b3ff2.wasm?v=05a20dfbd826", "pck/4-2751c26d54.wasm?v=05a20dfbd826", "pck/5-b5672acd6f.wasm?v=05a20dfbd826"];
+const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-ed5156407b.wasm": 14000000, "1-ebf8661d33.wasm": 14000000, "2-0e9935b222.wasm": 14000000, "3-83f94b3ff2.wasm": 14000000, "4-2751c26d54.wasm": 14000000, "5-b5672acd6f.wasm": 12274048};
 const CACHE = "archertd-" + BUILD;
 const NET_TIMEOUT = 8000;
 

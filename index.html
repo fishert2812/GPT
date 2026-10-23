@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 29241afc9c8d replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with 05a20dfbd826 replaced.
 //
 // - Badge, only in dev mode (open once with ?dev=1, it is remembered; ?dev=0 turns it off): "сборка XXXXXX ·
 //   60 к/с" at the left edge; tapping it opens the journal panel: live FPS / worst frame, memory, the last
@@ -153,7 +153,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 // - Nothing leaves the device: the journal lives in localStorage only. (Until 22.10.2026 it was also sent
 //   to ntfy.sh; a game for sale must not collect data without the player's consent.)
 (function () {
-  var BUILD = "29241afc9c8d";
+  var BUILD = "05a20dfbd826";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   // Browser extensions (wallets and the like) inject scripts into every page; their failures are not ours.
@@ -461,7 +461,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=29241afc9c8d"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-90f7a2a2d7.wasm?v=29241afc9c8d", "pck/1-ebf8661d33.wasm?v=29241afc9c8d", "pck/2-0e9935b222.wasm?v=29241afc9c8d", "pck/3-83f94b3ff2.wasm?v=29241afc9c8d", "pck/4-2751c26d54.wasm?v=29241afc9c8d", "pck/5-35cbfcc639.wasm?v=29241afc9c8d"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 11776336], "gzip": false, "size": 81776336, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=05a20dfbd826"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-ed5156407b.wasm?v=05a20dfbd826", "pck/1-ebf8661d33.wasm?v=05a20dfbd826", "pck/2-0e9935b222.wasm?v=05a20dfbd826", "pck/3-83f94b3ff2.wasm?v=05a20dfbd826", "pck/4-2751c26d54.wasm?v=05a20dfbd826", "pck/5-b5672acd6f.wasm?v=05a20dfbd826"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 12274048], "gzip": false, "size": 82274048, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1432,7 +1432,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":81776336,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":82274048,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1539,7 +1539,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "29241afc9c8d"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "05a20dfbd826"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
