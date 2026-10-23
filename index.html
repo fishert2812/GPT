@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 05d3f5e33578 replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with a381b0a61f58 replaced.
 //
 // - Badge, only in dev mode (open once with ?dev=1, it is remembered; ?dev=0 turns it off): "сборка XXXXXX ·
 //   60 к/с" at the left edge; tapping it opens the journal panel: live FPS / worst frame, memory, the last
@@ -153,7 +153,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 // - Nothing leaves the device: the journal lives in localStorage only. (Until 22.10.2026 it was also sent
 //   to ntfy.sh; a game for sale must not collect data without the player's consent.)
 (function () {
-  var BUILD = "05d3f5e33578";
+  var BUILD = "a381b0a61f58";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   // Browser extensions (wallets and the like) inject scripts into every page; their failures are not ours.
@@ -271,7 +271,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
   window.addEventListener("pagehide", function () { cur.state = "closed"; log("·", "страница закрыта"); save(); });
   window.addEventListener("pageshow", function () { cur.state = "visible"; save(); });
 
-  window.atdDiag = { game: "", log: log };  // Mobile.gd writes the game state into atdDiag.game
+  window.atdDiag = { game: "", log: log, build: BUILD.slice(0, 6) };  // Mobile.gd writes atdDiag.game; MainMenu shows build
   log("·", "старт, сборка " + BUILD.slice(0, 6) + ", экран " + cur.screen);
   var crashed = prev && prev.state === "visible" && prev.lines && prev.lines.length;
   var prevErrors = prev && prev.lines ? prev.lines.filter(function (l) { return l.indexOf(" ОШИБКА ") >= 0; }) : [];
@@ -461,7 +461,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=05d3f5e33578"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-11a4444c50.wasm?v=05d3f5e33578", "pck/1-706274257c.wasm?v=05d3f5e33578", "pck/2-91005e293c.wasm?v=05d3f5e33578", "pck/3-06fb0b27c5.wasm?v=05d3f5e33578", "pck/4-baa25bf343.wasm?v=05d3f5e33578", "pck/5-a882c095ad.wasm?v=05d3f5e33578"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 3872224], "gzip": false, "size": 73872224, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=a381b0a61f58"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-a3605a527b.wasm?v=a381b0a61f58", "pck/1-bfc03a865e.wasm?v=a381b0a61f58", "pck/2-f1cc96b93c.wasm?v=a381b0a61f58", "pck/3-37cbbbc332.wasm?v=a381b0a61f58", "pck/4-d0ca7d3708.wasm?v=a381b0a61f58", "pck/5-5601196ba1.wasm?v=a381b0a61f58"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 11759248], "gzip": false, "size": 81759248, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1432,7 +1432,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":73872224,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":81759248,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1539,7 +1539,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "05d3f5e33578"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "a381b0a61f58"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
