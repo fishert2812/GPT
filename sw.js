@@ -1,13 +1,15 @@
 // Service worker for the home-screen app. Template: tools/web_artifact.py --full fills in
 // the build id and the precache list below and writes it next to index.html as sw.js.
 // Game parts carry ?v=BUILD in their URL, so they are served from cache forever; a part is
-// cached only when its byte count matches SIZES (a stale or cut copy from a CDN never sticks);
+// cached on first use, and only when its byte count matches SIZES (a stale or cut copy from a CDN
+// never sticks). Parts are not precached: the page is downloading them at that very moment, and
+// a second copy in parallel would double the first load;
 // everything else (the page itself, sw.js, manifest, icons) is network-first and
 // revalidated past the HTTP cache, so a new deploy shows up on the next launch;
 // the cached copy is used only when the network fails or stalls.
-const BUILD = "05a20dfbd826";
-const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm?v=05a20dfbd826", "pck/0-ed5156407b.wasm?v=05a20dfbd826", "pck/1-ebf8661d33.wasm?v=05a20dfbd826", "pck/2-0e9935b222.wasm?v=05a20dfbd826", "pck/3-83f94b3ff2.wasm?v=05a20dfbd826", "pck/4-2751c26d54.wasm?v=05a20dfbd826", "pck/5-b5672acd6f.wasm?v=05a20dfbd826"];
-const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-ed5156407b.wasm": 14000000, "1-ebf8661d33.wasm": 14000000, "2-0e9935b222.wasm": 14000000, "3-83f94b3ff2.wasm": 14000000, "4-2751c26d54.wasm": 14000000, "5-b5672acd6f.wasm": 12274048};
+const BUILD = "05de881d45e7";
+const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm?v=05de881d45e7", "pck/0-c6798ecbb9.wasm?v=05de881d45e7", "pck/1-6045ccb8b6.wasm?v=05de881d45e7", "pck/2-50a8a80165.wasm?v=05de881d45e7", "pck/3-85dff5f651.wasm?v=05de881d45e7", "pck/4-73195df6ab.wasm?v=05de881d45e7"];
+const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-c6798ecbb9.wasm": 14000000, "1-6045ccb8b6.wasm": 14000000, "2-50a8a80165.wasm": 14000000, "3-85dff5f651.wasm": 14000000, "4-73195df6ab.wasm": 5565362};
 const CACHE = "archertd-" + BUILD;
 const NET_TIMEOUT = 8000;
 
@@ -15,24 +17,20 @@ const isChunk = (url) => new URL(url, self.location.href).searchParams.has("v");
 const fresh = (url) => new Request(url, { cache: "reload" });
 const want = (url) => SIZES[new URL(url, self.location.href).pathname.split("/").pop()];
 
-// A game part from the network, checked against its byte count; one more try past the HTTP cache
-// if it does not match. Resolves to { res, ok }: only ok parts go into the cache.
-const fetchPart = async (url) => {
-  let last = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const r = await fetch(url, { cache: attempt ? "reload" : "default" });
-    if (!r.ok) { last = r; continue; }
-    const buf = await r.arrayBuffer();
+// A game part from the network, streamed to the page as it arrives (the loading bar moves) while a
+// copy of the same bytes goes into the cache once its byte count matches. The page checks the size
+// itself and re-fetches a bad part with ?fresh, which bypasses this worker.
+const cachePart = async (key) => {
+  const r = await fetch(key);
+  if (!r.ok || !r.body) return r;
+  const [page, copy] = r.body.tee();
+  new Response(copy).arrayBuffer().then((buf) => {
+    if (want(key) !== undefined && buf.byteLength !== want(key)) return;
     const res = new Response(buf, { status: 200, headers: { "Content-Type": "application/wasm" } });
-    if (want(url) === undefined || buf.byteLength === want(url)) return { res, ok: true };
-    last = res;
-  }
-  return { res: last, ok: false };
+    return caches.open(CACHE).then((c) => c.put(key, res));
+  }).catch(() => {});
+  return new Response(page, { status: 200, headers: { "Content-Type": "application/wasm" } });
 };
-const cachePart = (key) => fetchPart(key).then(({ res, ok }) => {
-  if (ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
-  return res;
-});
 
 const store = (key) => (res) => {
   if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
@@ -41,10 +39,8 @@ const store = (key) => (res) => {
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(async (c) => {
-    // The shell must precache; the big game chunks are best-effort (they are also cached on first use).
+    // Only the shell: game chunks are cached as the page downloads them (cachePart).
     await c.addAll(PRECACHE.filter((u) => !isChunk(u)).map(fresh));
-    await Promise.allSettled(PRECACHE.filter(isChunk).map((u) => fetchPart(u)
-      .then(({ res, ok }) => ok && c.put(u, res))));
   }).then(() => self.skipWaiting()));
 });
 
