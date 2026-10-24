@@ -1,33 +1,42 @@
 // Service worker for the home-screen app. Template: tools/web_artifact.py --full fills in
 // the build id and the precache list below and writes it next to index.html as sw.js.
-// Game parts carry ?v=BUILD in their URL, so they are served from cache forever; a part is
-// cached on first use, and only when its byte count matches SIZES (a stale or cut copy from a CDN
-// never sticks). Parts are not precached: the page is downloading them at that very moment, and
-// a second copy in parallel would double the first load;
+// Game parts are named by a hash of their bytes (pck/0-1a2b3c4d5e.wasm), so they are served from cache
+// forever and kept across builds in PARTS: an update downloads only the parts whose names changed.
+// A part is cached on first use, and only when its bytes hash to its name (a stale or cut copy from a
+// CDN never sticks); parts the new build no longer lists (SIZES) are dropped on activate. Parts are not
+// precached: the page is downloading them at that very moment, and a second copy in parallel
+// would double the first load;
 // everything else (the page itself, sw.js, manifest, icons) is network-first and
 // revalidated past the HTTP cache, so a new deploy shows up on the next launch;
 // the cached copy is used only when the network fails or stalls.
-const BUILD = "dcba45ed5d73";
-const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm?v=dcba45ed5d73", "pck/0-9c782be5a7.wasm?v=dcba45ed5d73", "pck/1-b407734fe4.wasm?v=dcba45ed5d73", "pck/2-8c340f68b1.wasm?v=dcba45ed5d73", "pck/3-5cba0a3674.wasm?v=dcba45ed5d73", "pck/4-c0731f81a1.wasm?v=dcba45ed5d73"];
-const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-9c782be5a7.wasm": 14000000, "1-b407734fe4.wasm": 14000000, "2-8c340f68b1.wasm": 14000000, "3-5cba0a3674.wasm": 14000000, "4-c0731f81a1.wasm": 8328151};
+const BUILD = "f750e3cd4fca";
+const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm", "pck/0-62f0cfd613.wasm", "pck/1-3c4443ff81.wasm", "pck/2-25c4e28e90.wasm", "pck/3-deb898d89e.wasm", "pck/4-226bdadc62.wasm"];
+const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-62f0cfd613.wasm": 14000000, "1-3c4443ff81.wasm": 14000000, "2-25c4e28e90.wasm": 14000000, "3-deb898d89e.wasm": 14000000, "4-226bdadc62.wasm": 8328398};
 const CACHE = "archertd-" + BUILD;
+const PARTS = "archertd-parts";
 const NET_TIMEOUT = 8000;
 
-const isChunk = (url) => new URL(url, self.location.href).searchParams.has("v");
 const fresh = (url) => new Request(url, { cache: "reload" });
-const want = (url) => SIZES[new URL(url, self.location.href).pathname.split("/").pop()];
+// Any build's part, not only this one's: an old worker still in charge during an update caches the new
+// build's parts too, so they are not downloaded again once the new worker takes over.
+const PART = /\/(?:pck|wasm)\/\d+-([0-9a-f]{10})\.wasm$/;
+const tagOf = (url) => (PART.exec(new URL(url, self.location.href).pathname) || [])[1];
+const isChunk = (url) => tagOf(url) !== undefined;
+const listed = (url) => SIZES[new URL(url, self.location.href).pathname.split("/").pop()] !== undefined;
+const hex10 = async (buf) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buf)).slice(0, 5))
+  .map((b) => b.toString(16).padStart(2, "0")).join("");
 
 // A game part from the network, streamed to the page as it arrives (the loading bar moves) while a
-// copy of the same bytes goes into the cache once its byte count matches. The page checks the size
+// copy of the same bytes goes into the cache once they hash to the part's name. The page checks the size
 // itself and re-fetches a bad part with ?fresh, which bypasses this worker.
 const cachePart = async (key) => {
   const r = await fetch(key);
   if (!r.ok || !r.body) return r;
   const [page, copy] = r.body.tee();
-  new Response(copy).arrayBuffer().then((buf) => {
-    if (want(key) !== undefined && buf.byteLength !== want(key)) return;
+  new Response(copy).arrayBuffer().then(async (buf) => {
+    if ((await hex10(buf)) !== tagOf(key)) return;
     const res = new Response(buf, { status: 200, headers: { "Content-Type": "application/wasm" } });
-    return caches.open(CACHE).then((c) => c.put(key, res));
+    return caches.open(PARTS).then((c) => c.put(key, res));
   }).catch(() => {});
   return new Response(page, { status: 200, headers: { "Content-Type": "application/wasm" } });
 };
@@ -46,8 +55,10 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k.startsWith("archertd-") && k !== CACHE)
+    .then((keys) => Promise.all(keys.filter((k) => k.startsWith("archertd-") && k !== CACHE && k !== PARTS)
       .map((k) => caches.delete(k))))
+    .then(() => caches.open(PARTS))
+    .then((c) => c.keys().then((reqs) => Promise.all(reqs.filter((r) => !listed(r.url)).map((r) => c.delete(r)))))
     .then(() => self.clients.claim()));
 });
 
@@ -67,8 +78,8 @@ self.addEventListener("fetch", (e) => {
     return;
   }
   if (isChunk(req.url)) {
-    // Versioned game chunk: cache-first, forever.
-    e.respondWith(caches.match(req).then((hit) => hit || cachePart(req.url)));
+    // Game part (name = hash of its bytes): cache-first, forever.
+    e.respondWith(caches.open(PARTS).then((c) => c.match(req.url)).then((hit) => hit || cachePart(req.url)));
     return;
   }
   // Shell file or navigation: network-first ("no-cache" revalidates past the HTTP cache's max-age),

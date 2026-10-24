@@ -139,7 +139,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with dcba45ed5d73 replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with f750e3cd4fca replaced.
 //
 // - Badge, only in dev mode (open once with ?dev=1, it is remembered; ?dev=0 turns it off): "сборка XXXXXX ·
 //   60 к/с" at the left edge; tapping it opens the journal panel: live FPS / worst frame, memory, the last
@@ -153,7 +153,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 // - Nothing leaves the device: the journal lives in localStorage only. (Until 22.10.2026 it was also sent
 //   to ntfy.sh; a game for sale must not collect data without the player's consent.)
 (function () {
-  var BUILD = "dcba45ed5d73";
+  var BUILD = "f750e3cd4fca";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   // Browser extensions (wallets and the like) inject scripts into every page; their failures are not ours.
@@ -461,7 +461,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 
 (function () {
-  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm?v=dcba45ed5d73"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-9c782be5a7.wasm?v=dcba45ed5d73", "pck/1-b407734fe4.wasm?v=dcba45ed5d73", "pck/2-8c340f68b1.wasm?v=dcba45ed5d73", "pck/3-5cba0a3674.wasm?v=dcba45ed5d73", "pck/4-c0731f81a1.wasm?v=dcba45ed5d73"], "sizes": [14000000, 14000000, 14000000, 14000000, 8328151], "gzip": true, "size": 96767728, "type": "application/octet-stream"}};
+  const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}, "index.pck": {"parts": ["pck/0-62f0cfd613.wasm", "pck/1-3c4443ff81.wasm", "pck/2-25c4e28e90.wasm", "pck/3-deb898d89e.wasm", "pck/4-226bdadc62.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 8328398], "gzip": true, "size": 96768000, "type": "application/octet-stream"}};
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1466,7 +1466,7 @@ if (typeof window !== 'undefined') {
 }
 </script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":96767728,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":false,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":96768000,"index.wasm":43699190},"focusCanvas":true,"gdextensionLibs":[],"serviceWorker":""};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
@@ -1573,7 +1573,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "dcba45ed5d73"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "f750e3cd4fca"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
