@@ -132,7 +132,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 		<script>
 (function () {
-  var sets = ["pc", "phone"], sizes = {"pc": 109792848, "phone": 109793120}, want = (/[?&]pck=(\w+)/.exec(location.search) || [])[1], got = 'pc';
+  var sets = ["pc", "phone"], sizes = {"pc": 159099968, "phone": 159100512}, want = (/[?&]pck=(\w+)/.exec(location.search) || [])[1], got = 'pc';
   if (sets.indexOf(want) >= 0) got = want;
   else if (sets.indexOf('phone') >= 0) {
     try {
@@ -155,7 +155,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with d4a3a32d76b2 replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with 6db5e960b117 replaced.
 //
 // - Badge, only in dev mode (open once with ?dev=1, it is remembered; ?dev=0 turns it off): "сборка XXXXXX ·
 //   60 к/с" at the left edge; tapping it opens the journal panel: live FPS / worst frame, memory, the last
@@ -169,7 +169,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 // - Nothing leaves the device: the journal lives in localStorage only. (Until 22.10.2026 it was also sent
 //   to ntfy.sh; a game for sale must not collect data without the player's consent.)
 (function () {
-  var BUILD = "d4a3a32d76b2";
+  var BUILD = "6db5e960b117";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   // Browser extensions (wallets and the like) inject scripts into every page; their failures are not ours.
@@ -492,7 +492,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 (function () {
   const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}};
-  CHUNKS['index.pck'] = {"pc": {"parts": ["pck/pc-0-d6944235f3.wasm", "pck/pc-1-9c5f5e43a3.wasm", "pck/pc-2-4a79ce51e6.wasm", "pck/pc-3-eb63b4d6f8.wasm", "pck/pc-4-1f786e36da.wasm", "pck/pc-5-83e9af565d.wasm", "pck/pc-6-79d1350921.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 8217120], "gzip": true, "size": 109792848, "type": "application/octet-stream"}, "phone": {"parts": ["pck/phone-0-c0c65d144e.wasm", "pck/phone-1-295ce14613.wasm", "pck/phone-2-d9d2e0d146.wasm", "pck/phone-3-7a5b90191a.wasm", "pck/phone-4-b7e094015a.wasm", "pck/phone-5-11b1abe67e.wasm", "pck/phone-6-1570c66991.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 8154337], "gzip": true, "size": 109793120, "type": "application/octet-stream"}}[window.atdPckSet];
+  CHUNKS['index.pck'] = {"pc": {"parts": ["pck/pc-0-29b816fcb0.wasm", "pck/pc-1-85bb23ebee.wasm", "pck/pc-2-952a4befa6.wasm", "pck/pc-3-eb73ab01c2.wasm", "pck/pc-4-f091b3c1e1.wasm", "pck/pc-5-95f660b0ba.wasm", "pck/pc-6-de66c2022a.wasm", "pck/pc-7-2ab0e55a93.wasm", "pck/pc-8-a1b1219cf2.wasm", "pck/pc-9-89e06b013f.wasm", "pck/pc-10-86fbcc2f7c.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 1366666], "gzip": true, "size": 159099968, "type": "application/octet-stream"}, "phone": {"parts": ["pck/phone-0-5c4d91b630.wasm", "pck/phone-1-534bd59668.wasm", "pck/phone-2-ecef98e6c4.wasm", "pck/phone-3-fb78bbc284.wasm", "pck/phone-4-d2a69c2984.wasm", "pck/phone-5-7eab09d425.wasm", "pck/phone-6-eb8cddc8bf.wasm", "pck/phone-7-809bc2de4f.wasm", "pck/phone-8-7696cb33cc.wasm", "pck/phone-9-6a90652431.wasm", "pck/phone-10-999d3054d0.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 1302397], "gzip": true, "size": 159100512, "type": "application/octet-stream"}}[window.atdPckSet];
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1604,7 +1604,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "d4a3a32d76b2"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "6db5e960b117"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
