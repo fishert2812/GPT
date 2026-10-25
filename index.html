@@ -132,7 +132,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 		<script>
 (function () {
-  var sets = ["pc", "phone"], sizes = {"pc": 109781856, "phone": 109782128}, want = (/[?&]pck=(\w+)/.exec(location.search) || [])[1], got = 'pc';
+  var sets = ["pc", "phone"], sizes = {"pc": 109792848, "phone": 109793120}, want = (/[?&]pck=(\w+)/.exec(location.search) || [])[1], got = 'pc';
   if (sets.indexOf(want) >= 0) got = want;
   else if (sets.indexOf('phone') >= 0) {
     try {
@@ -155,7 +155,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 41a636ed8bfc replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with d4a3a32d76b2 replaced.
 //
 // - Badge, only in dev mode (open once with ?dev=1, it is remembered; ?dev=0 turns it off): "сборка XXXXXX ·
 //   60 к/с" at the left edge; tapping it opens the journal panel: live FPS / worst frame, memory, the last
@@ -169,7 +169,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 // - Nothing leaves the device: the journal lives in localStorage only. (Until 22.10.2026 it was also sent
 //   to ntfy.sh; a game for sale must not collect data without the player's consent.)
 (function () {
-  var BUILD = "41a636ed8bfc";
+  var BUILD = "d4a3a32d76b2";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   // Browser extensions (wallets and the like) inject scripts into every page; their failures are not ours.
@@ -492,7 +492,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 (function () {
   const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}};
-  CHUNKS['index.pck'] = {"pc": {"parts": ["pck/pc-0-1ac25da317.wasm", "pck/pc-1-0d4006eb26.wasm", "pck/pc-2-4d86e14edb.wasm", "pck/pc-3-a096fae35f.wasm", "pck/pc-4-5a57145017.wasm", "pck/pc-5-011c75e2e6.wasm", "pck/pc-6-ec02270b83.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 8212651], "gzip": true, "size": 109781856, "type": "application/octet-stream"}, "phone": {"parts": ["pck/phone-0-4916240b0c.wasm", "pck/phone-1-28ec6b885d.wasm", "pck/phone-2-c4e73f78c9.wasm", "pck/phone-3-198859005c.wasm", "pck/phone-4-9538c8d307.wasm", "pck/phone-5-c5bc41afac.wasm", "pck/phone-6-a7577fa034.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 8148037], "gzip": true, "size": 109782128, "type": "application/octet-stream"}}[window.atdPckSet];
+  CHUNKS['index.pck'] = {"pc": {"parts": ["pck/pc-0-d6944235f3.wasm", "pck/pc-1-9c5f5e43a3.wasm", "pck/pc-2-4a79ce51e6.wasm", "pck/pc-3-eb63b4d6f8.wasm", "pck/pc-4-1f786e36da.wasm", "pck/pc-5-83e9af565d.wasm", "pck/pc-6-79d1350921.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 8217120], "gzip": true, "size": 109792848, "type": "application/octet-stream"}, "phone": {"parts": ["pck/phone-0-c0c65d144e.wasm", "pck/phone-1-295ce14613.wasm", "pck/phone-2-d9d2e0d146.wasm", "pck/phone-3-7a5b90191a.wasm", "pck/phone-4-b7e094015a.wasm", "pck/phone-5-11b1abe67e.wasm", "pck/phone-6-1570c66991.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 8154337], "gzip": true, "size": 109793120, "type": "application/octet-stream"}}[window.atdPckSet];
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1604,7 +1604,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "41a636ed8bfc"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "d4a3a32d76b2"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
