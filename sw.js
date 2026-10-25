@@ -1,6 +1,6 @@
 // Service worker for the home-screen app. Template: tools/web_artifact.py --full fills in
 // the build id and the precache list below and writes it next to index.html as sw.js.
-// Game parts are named by a hash of their bytes (pck/0-1a2b3c4d5e.wasm), so they are served from cache
+// Game parts are named by a hash of their bytes (pck/pc-0-1a2b3c4d5e.wasm), so they are served from cache
 // forever and kept across builds in PARTS: an update downloads only the parts whose names changed.
 // A part is cached on first use, and only when its bytes hash to its name (a stale or cut copy from a
 // CDN never sticks); parts the new build no longer lists (SIZES) are dropped on activate. Parts are not
@@ -9,9 +9,9 @@
 // everything else (the page itself, sw.js, manifest, icons) is network-first and
 // revalidated past the HTTP cache, so a new deploy shows up on the next launch;
 // the cached copy is used only when the network fails or stalls.
-const BUILD = "f750e3cd4fca";
-const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm", "pck/0-62f0cfd613.wasm", "pck/1-3c4443ff81.wasm", "pck/2-25c4e28e90.wasm", "pck/3-deb898d89e.wasm", "pck/4-226bdadc62.wasm"];
-const SIZES = {"0-e06c0d789e.wasm": 9387768, "0-62f0cfd613.wasm": 14000000, "1-3c4443ff81.wasm": 14000000, "2-25c4e28e90.wasm": 14000000, "3-deb898d89e.wasm": 14000000, "4-226bdadc62.wasm": 8328398};
+const BUILD = "41a636ed8bfc";
+const PRECACHE = ["index.html", "manifest.json", "index.png", "index.audio.worklet.js", "index.audio.position.worklet.js", "icon-180.png", "icon-192.png", "icon-512.png", "wasm/0-e06c0d789e.wasm", "pck/pc-0-1ac25da317.wasm", "pck/pc-1-0d4006eb26.wasm", "pck/pc-2-4d86e14edb.wasm", "pck/pc-3-a096fae35f.wasm", "pck/pc-4-5a57145017.wasm", "pck/pc-5-011c75e2e6.wasm", "pck/pc-6-ec02270b83.wasm", "pck/phone-0-4916240b0c.wasm", "pck/phone-1-28ec6b885d.wasm", "pck/phone-2-c4e73f78c9.wasm", "pck/phone-3-198859005c.wasm", "pck/phone-4-9538c8d307.wasm", "pck/phone-5-c5bc41afac.wasm", "pck/phone-6-a7577fa034.wasm"];
+const SIZES = {"0-e06c0d789e.wasm": 9387768, "pc-0-1ac25da317.wasm": 14000000, "pc-1-0d4006eb26.wasm": 14000000, "pc-2-4d86e14edb.wasm": 14000000, "pc-3-a096fae35f.wasm": 14000000, "pc-4-5a57145017.wasm": 14000000, "pc-5-011c75e2e6.wasm": 14000000, "pc-6-ec02270b83.wasm": 8212651, "phone-0-4916240b0c.wasm": 14000000, "phone-1-28ec6b885d.wasm": 14000000, "phone-2-c4e73f78c9.wasm": 14000000, "phone-3-198859005c.wasm": 14000000, "phone-4-9538c8d307.wasm": 14000000, "phone-5-c5bc41afac.wasm": 14000000, "phone-6-a7577fa034.wasm": 8148037};
 const CACHE = "archertd-" + BUILD;
 const PARTS = "archertd-parts";
 const NET_TIMEOUT = 8000;
@@ -19,7 +19,7 @@ const NET_TIMEOUT = 8000;
 const fresh = (url) => new Request(url, { cache: "reload" });
 // Any build's part, not only this one's: an old worker still in charge during an update caches the new
 // build's parts too, so they are not downloaded again once the new worker takes over.
-const PART = /\/(?:pck|wasm)\/\d+-([0-9a-f]{10})\.wasm$/;
+const PART = /\/(?:pck|wasm)\/(?:[a-z]+-)?\d+-([0-9a-f]{10})\.wasm$/;  // pck/phone-0-<hash>.wasm too
 const tagOf = (url) => (PART.exec(new URL(url, self.location.href).pathname) || [])[1];
 const isChunk = (url) => tagOf(url) !== undefined;
 const listed = (url) => SIZES[new URL(url, self.location.href).pathname.split("/").pop()] !== undefined;
