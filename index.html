@@ -132,7 +132,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 		<script>
 (function () {
-  var sets = ["pc", "phone"], sizes = {"pc": 170391680, "phone": 170391968}, want = (/[?&]pck=(\w+)/.exec(location.search) || [])[1], got = 'pc';
+  var sets = ["pc", "phone"], sizes = {"pc": 171729712, "phone": 171729984}, want = (/[?&]pck=(\w+)/.exec(location.search) || [])[1], got = 'pc';
   if (sets.indexOf(want) >= 0) got = want;
   else if (sets.indexOf('phone') >= 0) {
     try {
@@ -155,7 +155,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 }());
 </script>
 <script>// Phone diagnostics for the web build: build badge with live FPS, and a crash journal that survives
-// a page reload. web_artifact.py inlines this file before the engine script, with 49ec2dea1279 replaced.
+// a page reload. web_artifact.py inlines this file before the engine script, with 2028009d3267 replaced.
 //
 // - Badge, only in dev mode (open once with ?dev=1, it is remembered; ?dev=0 turns it off): "сборка XXXXXX ·
 //   60 к/с" at the left edge; tapping it opens the journal panel: live FPS / worst frame, memory, the last
@@ -169,7 +169,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 // - Nothing leaves the device: the journal lives in localStorage only. (Until 22.10.2026 it was also sent
 //   to ntfy.sh; a game for sale must not collect data without the player's consent.)
 (function () {
-  var BUILD = "49ec2dea1279";
+  var BUILD = "2028009d3267";
   var KEY = "atd_diag";
   var MAX_LINES = 400;
   // Browser extensions (wallets and the like) inject scripts into every page; their failures are not ours.
@@ -492,7 +492,7 @@ html, body { height: 100%; margin: 0; background: #141a14; }
 
 (function () {
   const CHUNKS = {"index.wasm": {"parts": ["wasm/0-e06c0d789e.wasm"], "sizes": [9387768], "gzip": true, "size": 43699190, "type": "application/wasm"}};
-  CHUNKS['index.pck'] = {"pc": {"parts": ["pck/pc-0-e4e716a8c5.wasm", "pck/pc-1-ed7027c9f2.wasm", "pck/pc-2-6af574ad16.wasm", "pck/pc-3-1a02455fb8.wasm", "pck/pc-4-584a3700ed.wasm", "pck/pc-5-3cb3450d90.wasm", "pck/pc-6-da6cbb213b.wasm", "pck/pc-7-9c3998845c.wasm", "pck/pc-8-373c12b8e9.wasm", "pck/pc-9-3626e21ad6.wasm", "pck/pc-10-337c3ee834.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 12104736], "gzip": true, "size": 170391680, "type": "application/octet-stream"}, "phone": {"parts": ["pck/phone-0-55814f12b2.wasm", "pck/phone-1-c78eff5adb.wasm", "pck/phone-2-80502ddbca.wasm", "pck/phone-3-7ec8bf1d6d.wasm", "pck/phone-4-56512514a3.wasm", "pck/phone-5-92a8ded73f.wasm", "pck/phone-6-dbabd9334e.wasm", "pck/phone-7-bf7b3840c4.wasm", "pck/phone-8-511e84cf22.wasm", "pck/phone-9-f512ff4943.wasm", "pck/phone-10-0eb172e5ac.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 12038392], "gzip": true, "size": 170391968, "type": "application/octet-stream"}}[window.atdPckSet];
+  CHUNKS['index.pck'] = {"pc": {"parts": ["pck/pc-0-ee26d0de62.wasm", "pck/pc-1-4cb87f138b.wasm", "pck/pc-2-1ef3355aac.wasm", "pck/pc-3-c24d873b0f.wasm", "pck/pc-4-a7fd56ff20.wasm", "pck/pc-5-7259d2b13a.wasm", "pck/pc-6-ccacf6db07.wasm", "pck/pc-7-2920a027bd.wasm", "pck/pc-8-9126cbe869.wasm", "pck/pc-9-aaa9f5a424.wasm", "pck/pc-10-7703f25fdb.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 13411709], "gzip": true, "size": 171729712, "type": "application/octet-stream"}, "phone": {"parts": ["pck/phone-0-9896654741.wasm", "pck/phone-1-31f0bbcda6.wasm", "pck/phone-2-6749e756e5.wasm", "pck/phone-3-8eed70c32d.wasm", "pck/phone-4-d936b3ca48.wasm", "pck/phone-5-1fd2e3758a.wasm", "pck/phone-6-140c8516d3.wasm", "pck/phone-7-a25cf25431.wasm", "pck/phone-8-adb7077dc5.wasm", "pck/phone-9-12346a45fd.wasm", "pck/phone-10-0733fb2912.wasm"], "sizes": [14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 14000000, 13344734], "gzip": true, "size": 171729984, "type": "application/octet-stream"}}[window.atdPckSet];
   const realFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -1604,7 +1604,7 @@ const engine = new Engine(GODOT_CONFIG);
 	
 <script>
 (function () {
-  var BUILD = "49ec2dea1279"; // same value as BUILD in sw.js; bumped together on every deploy
+  var BUILD = "2028009d3267"; // same value as BUILD in sw.js; bumped together on every deploy
 
   if (!('serviceWorker' in navigator)) return;
 
